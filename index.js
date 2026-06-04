@@ -29,11 +29,29 @@ app.post('/api/exam/:examId/submit', (req, res) => {
   try {
     const { examId } = req.params;
     const { answers } = req.body;
-    
+
     const result = validateAnswers(examId, answers);
     res.json({
       success: true,
       data: result
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to validate answers'
+    });
+  }
+});
+
+app.post('/api/submit-exam', (req, res) => {
+  try {
+    const { examId, answers, startTime } = req.body;
+    const result = validateAnswers(examId, answers);
+    res.json({
+      success: true,
+      score: result.score,
+      message: result.feedback,
+      detailedResults: result.detailedResults
     });
   } catch (error) {
     res.status(500).json({

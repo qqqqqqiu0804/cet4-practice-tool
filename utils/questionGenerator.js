@@ -66,19 +66,105 @@ function generateExam() {
   // 构建考试内容
   selectedSets.forEach(({ set, module }) => {
     const questionSet = questions[set];
-    
-    if (module === 'readingComprehension') {
-      // 仔细阅读有两道题，随机选择其中一道
-      const randomIndex = Math.floor(Math.random() * 2);
-      exam.sections[module] = {
-        ...questionSet[module][randomIndex],
-        sourceSet: set
-      };
-    } else {
-      exam.sections[module] = {
-        ...questionSet[module],
-        sourceSet: set
-      };
+
+    if (module === 'wordFilling') {
+      const wf = questionSet.wordFilling;
+      if (wf) {
+        exam.sections[module] = {
+          id: wf.id,
+          type: wf.type,
+          passage: wf.passage,
+          options: wf.options || wf.wordBank,
+          blanks: wf.blanks,
+          sourceSet: set,
+          correctAnswers: wf.blanks.map(blank => {
+            const answerIndex = blank.answer.charCodeAt(0) - 'A'.charCodeAt(0);
+            const opts = wf.options || wf.wordBank;
+            if (answerIndex >= 0 && answerIndex < opts.length) {
+              return opts[answerIndex];
+            }
+            return `答案${blank.answer}`;
+          })
+        };
+      }
+    } else if (module === 'paragraphMatching') {
+      const pm = questionSet.paragraphMatching;
+      if (pm) {
+        // 解析段落
+        let paragraphs = [];
+        if (pm.passage) {
+          const cleanPassage = pm.passage.replace(/\s+/g, ' ').trim();
+          const paragraphMatches = cleanPassage.match(/[A-O]\.\s*(.*?)(?=[A-O]\.|$)/g);
+          if (paragraphMatches) {
+            paragraphMatches.forEach(match => {
+              const contentMatch = match.match(/[A-O]\.\s*(.*)/);
+              if (contentMatch && contentMatch[1]) {
+                const content = contentMatch[1].trim();
+                if (content.length > 0) {
+                  paragraphs.push(content);
+                }
+              }
+            });
+          } else {
+            const passageLines = pm.passage.split('\n').filter(line => line.trim());
+            passageLines.forEach(line => {
+              const trimmedLine = line.trim();
+              const match = trimmedLine.match(/^[A-O]\.\s*(.*)$/);
+              if (match && match[1].trim().length > 0) {
+                paragraphs.push(match[1].trim());
+              }
+            });
+          }
+        }
+
+        // 解析问题
+        let questionsArr = [];
+        if (pm.sentences && Array.isArray(pm.sentences)) {
+          questionsArr = pm.sentences.map(item => ({
+            question: item.text || item.question || '',
+            answer: item.answer || ''
+          }));
+        } else if (pm.questions && Array.isArray(pm.questions)) {
+          questionsArr = pm.questions.map(item => ({
+            question: item.text || item.question || '',
+            answer: item.answer || ''
+          }));
+        }
+
+        exam.sections[module] = {
+          paragraphs,
+          questions: questionsArr,
+          sourceSet: set
+        };
+      }
+    } else if (module === 'readingComprehension') {
+      const rc = questionSet.readingComprehension;
+      if (rc) {
+        const reading = Array.isArray(rc) ? rc[Math.floor(Math.random() * rc.length)] : rc;
+        exam.sections[module] = {
+          passage: reading.article || reading.passage,
+          questions: reading.questions || [],
+          sourceSet: set
+        };
+      }
+    } else if (module === 'translation') {
+      const tr = questionSet.translation;
+      if (tr) {
+        exam.sections[module] = {
+          chinese: tr.chinese,
+          reference: tr.reference,
+          sourceSet: set
+        };
+      }
+    } else if (module === 'writing') {
+      const wr = questionSet.writing;
+      if (wr) {
+        exam.sections[module] = {
+          topic: wr.topic,
+          tips: wr.tips,
+          sourceSet: set
+        };
+      }
     }
   });
 
