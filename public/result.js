@@ -7,28 +7,30 @@ document.addEventListener('DOMContentLoaded', function() {
 // 显示考试结果
 function displayResult() {
     const result = JSON.parse(localStorage.getItem('examResult') || '{}');
-    const answers = JSON.parse(localStorage.getItem('examAnswers') || '{}');
-    const examData = JSON.parse(localStorage.getItem('examData') || '{}');
-    
+
     if (!result.examId) {
         alert('没有找到考试结果，请重新参加考试');
         window.location.href = '/';
         return;
     }
-    
+
     // 显示总分
     const totalScore = result.score || 0;
     document.getElementById('totalScore').textContent = totalScore;
     document.getElementById('scoreLabel').textContent = getScoreLabel(totalScore);
-    
+
     // 显示考试信息
     document.getElementById('examIdResult').textContent = result.examId;
-    document.getElementById('completionTime').textContent = new Date().toLocaleString();
-    document.getElementById('timeUsed').textContent = '120:00'; // 可以根据实际情况计算
-    
+    document.getElementById('completionTime').textContent = result.submitTime
+        ? new Date(result.submitTime).toLocaleString()
+        : new Date().toLocaleString();
+
     // 显示各部分得分
-    displaySectionScores(result, answers, examData);
-    
+    if (result.sections) {
+        displaySectionScores(result.sections);
+        displayDetailResults(result.sections);
+    }
+
     // 显示学习建议
     displayFeedback(totalScore);
 }
@@ -43,97 +45,124 @@ function getScoreLabel(score) {
 }
 
 // 显示各部分得分
-function displaySectionScores(result, answers, examData) {
-    // 这里可以根据实际答案计算各部分得分
-    // 暂时使用模拟分数
-    const sectionScores = {
-        wordFilling: Math.floor(Math.random() * 20) + 10,
-        paragraphMatching: Math.floor(Math.random() * 20) + 10,
-        readingComprehension: Math.floor(Math.random() * 30) + 15,
-        translation: Math.floor(Math.random() * 15) + 5,
-        writing: Math.floor(Math.random() * 15) + 5
+function displaySectionScores(sections) {
+    const names = {
+        wordFilling: '选词填空',
+        paragraphMatching: '段落匹配',
+        readingComprehension: '仔细阅读',
+        translation: '翻译',
+        writing: '写作'
     };
-    
-    document.getElementById('wfScore').textContent = sectionScores.wordFilling;
-    document.getElementById('pmScore').textContent = sectionScores.paragraphMatching;
-    document.getElementById('rcScore').textContent = sectionScores.readingComprehension;
-    document.getElementById('trScore').textContent = sectionScores.translation;
-    document.getElementById('wrScore').textContent = sectionScores.writing;
+
+    Object.entries(names).forEach(([key, label]) => {
+        const el = document.getElementById(key === 'wordFilling' ? 'wfScore' :
+            key === 'paragraphMatching' ? 'pmScore' :
+            key === 'readingComprehension' ? 'rcScore' :
+            key === 'translation' ? 'trScore' : 'wrScore');
+        if (el && sections[key]) {
+            el.textContent = sections[key].score + '/' + sections[key].total;
+        }
+    });
+}
+
+// 显示答题详情
+function displayDetailResults(sections) {
+    const container = document.getElementById('detailContent');
+    if (!container) return;
+
+    let html = '';
+
+    // 选词填空详情
+    if (sections.wordFilling && sections.wordFilling.details) {
+        html += '<div class="detail-section">';
+        html += '<h4>选词填空 (' + sections.wordFilling.score + '/' + sections.wordFilling.total + ')</h4>';
+        html += '<div class="detail-list">';
+        sections.wordFilling.details.forEach((d, i) => {
+            const cls = d.isCorrect ? 'detail-correct' : 'detail-incorrect';
+            html += '<div class="detail-item ' + cls + '">';
+            html += '<span class="detail-num">' + (i + 1) + '.</span>';
+            html += '<span class="detail-user">你的答案: ' + (d.userAnswer || '未作答') + '</span>';
+            if (!d.isCorrect) {
+                html += '<span class="detail-ans">正确答案: ' + d.correctAnswer + '</span>';
+            }
+            html += '<span class="detail-icon">' + (d.isCorrect ? '✓' : '✗') + '</span>';
+            html += '</div>';
+        });
+        html += '</div></div>';
+    }
+
+    // 段落匹配详情
+    if (sections.paragraphMatching && sections.paragraphMatching.details) {
+        html += '<div class="detail-section">';
+        html += '<h4>段落匹配 (' + sections.paragraphMatching.score + '/' + sections.paragraphMatching.total + ')</h4>';
+        html += '<div class="detail-list">';
+        sections.paragraphMatching.details.forEach((d, i) => {
+            const cls = d.isCorrect ? 'detail-correct' : 'detail-incorrect';
+            html += '<div class="detail-item ' + cls + '">';
+            html += '<span class="detail-num">' + (i + 1) + '.</span>';
+            html += '<span class="detail-user">你的答案: ' + (d.userAnswer || '未作答') + '</span>';
+            if (!d.isCorrect) {
+                html += '<span class="detail-ans">正确答案: ' + d.correctAnswer + '</span>';
+            }
+            html += '<span class="detail-icon">' + (d.isCorrect ? '✓' : '✗') + '</span>';
+            html += '</div>';
+        });
+        html += '</div></div>';
+    }
+
+    // 仔细阅读详情
+    if (sections.readingComprehension && sections.readingComprehension.details) {
+        const optionLabels = ['A', 'B', 'C', 'D'];
+        html += '<div class="detail-section">';
+        html += '<h4>仔细阅读 (' + sections.readingComprehension.score + '/' + sections.readingComprehension.total + ')</h4>';
+        html += '<div class="detail-list">';
+        sections.readingComprehension.details.forEach((d, i) => {
+            const cls = d.isCorrect ? 'detail-correct' : 'detail-incorrect';
+            const userLabel = d.userAnswer !== null ? optionLabels[d.userAnswer] : '未作答';
+            const correctLabel = d.correctAnswer !== null ? optionLabels[d.correctAnswer] : '-';
+            html += '<div class="detail-item ' + cls + '">';
+            html += '<span class="detail-num">' + (i + 1) + '.</span>';
+            html += '<span class="detail-user">你的答案: ' + userLabel + '</span>';
+            if (!d.isCorrect) {
+                html += '<span class="detail-ans">正确答案: ' + correctLabel + '</span>';
+            }
+            html += '<span class="detail-icon">' + (d.isCorrect ? '✓' : '✗') + '</span>';
+            html += '</div>';
+        });
+        html += '</div></div>';
+    }
+
+    // 翻译和写作提示
+    if (sections.translation && sections.translation.manual) {
+        html += '<div class="detail-section"><h4>翻译 (默认' + sections.translation.score + '/' + sections.translation.total + ')</h4>';
+        html += '<p class="detail-note">翻译题需人工评分，暂给默认分</p></div>';
+    }
+    if (sections.writing && sections.writing.manual) {
+        html += '<div class="detail-section"><h4>写作 (默认' + sections.writing.score + '/' + sections.writing.total + ')</h4>';
+        html += '<p class="detail-note">写作题需人工评分，暂给默认分</p></div>';
+    }
+
+    container.innerHTML = html;
 }
 
 // 显示学习建议
 function displayFeedback(score) {
     const feedbackContent = document.getElementById('feedbackContent');
-    
+    if (!feedbackContent) return;
+
     let feedback = '';
-    
     if (score >= 90) {
-        feedback = `
-            <div class="feedback-item">
-                <h4>🎉 优秀表现！</h4>
-                <p>你的英语水平非常出色，继续保持这种学习状态。建议：</p>
-                <ul>
-                    <li>可以尝试更高难度的练习</li>
-                    <li>多阅读英文原著和新闻</li>
-                    <li>练习口语和听力技能</li>
-                    <li>考虑参加更高级别的英语考试</li>
-                </ul>
-            </div>
-        `;
+        feedback = '<div class="feedback-item"><h4>🎉 优秀表现！</h4><p>你的英语水平非常出色，继续保持。可以尝试更高难度的练习，多阅读英文原著和新闻。</p></div>';
     } else if (score >= 80) {
-        feedback = `
-            <div class="feedback-item">
-                <h4>👍 良好表现！</h4>
-                <p>你的英语基础扎实，有很好的提升空间。建议：</p>
-                <ul>
-                    <li>重点复习错题和薄弱环节</li>
-                    <li>增加词汇量，特别是高频词汇</li>
-                    <li>多练习阅读理解和写作</li>
-                    <li>定期进行模拟考试</li>
-                </ul>
-            </div>
-        `;
+        feedback = '<div class="feedback-item"><h4>👍 良好表现！</h4><p>英语基础扎实，建议重点复习错题，增加词汇量，多练习阅读理解和写作。</p></div>';
     } else if (score >= 70) {
-        feedback = `
-            <div class="feedback-item">
-                <h4>📚 继续努力！</h4>
-                <p>你的英语水平中等，需要系统性的复习。建议：</p>
-                <ul>
-                    <li>系统复习语法知识</li>
-                    <li>扩大词汇量，每天背诵新单词</li>
-                    <li>多做阅读练习，提高理解能力</li>
-                    <li>练习写作，注意结构和逻辑</li>
-                </ul>
-            </div>
-        `;
+        feedback = '<div class="feedback-item"><h4>📚 继续努力！</h4><p>英语水平中等，建议系统复习语法，扩大词汇量，多做阅读练习。</p></div>';
     } else if (score >= 60) {
-        feedback = `
-            <div class="feedback-item">
-                <h4>💪 需要加强！</h4>
-                <p>你的英语基础需要加强，建议制定详细的学习计划。建议：</p>
-                <ul>
-                    <li>从基础语法开始系统学习</li>
-                    <li>每天背诵单词，建立词汇库</li>
-                    <li>多听英语，提高听力理解</li>
-                    <li>参加英语学习小组或课程</li>
-                </ul>
-            </div>
-        `;
+        feedback = '<div class="feedback-item"><h4>💪 需要加强！</h4><p>英语基础需要加强，建议从基础语法开始系统学习，每天背诵单词。</p></div>';
     } else {
-        feedback = `
-            <div class="feedback-item">
-                <h4>🚀 重新开始！</h4>
-                <p>不要气馁，每个人都有自己的学习节奏。建议：</p>
-                <ul>
-                    <li>制定详细的学习计划和时间表</li>
-                    <li>从最基础的英语知识开始</li>
-                    <li>寻找学习伙伴或老师指导</li>
-                    <li>保持积极的学习态度</li>
-                </ul>
-            </div>
-        `;
+        feedback = '<div class="feedback-item"><h4>🚀 重新开始！</h4><p>不要气馁，建议制定详细学习计划，从最基础的英语知识开始。</p></div>';
     }
-    
+
     feedbackContent.innerHTML = feedback;
 }
 
@@ -141,45 +170,33 @@ function displayFeedback(score) {
 function setupEventListeners() {
     const newExamBtn = document.getElementById('newExam');
     const reviewAnswersBtn = document.getElementById('reviewAnswers');
+    const wrongBookBtn = document.getElementById('wrongBook');
     const goHomeBtn = document.getElementById('goHome');
-    
+
     if (newExamBtn) {
         newExamBtn.addEventListener('click', function() {
-            // 清除之前的考试数据
             localStorage.removeItem('examResult');
             localStorage.removeItem('examAnswers');
             localStorage.removeItem('examData');
-            localStorage.removeItem('examProgress');
-            
-            // 跳转到考试页面
             window.location.href = '/exam';
         });
     }
-    
+
     if (reviewAnswersBtn) {
         reviewAnswersBtn.addEventListener('click', function() {
-            // 跳转到答案页面
             window.location.href = '/answers.html';
         });
     }
-    
+
+    if (wrongBookBtn) {
+        wrongBookBtn.addEventListener('click', function() {
+            window.location.href = '/wrong.html';
+        });
+    }
+
     if (goHomeBtn) {
         goHomeBtn.addEventListener('click', function() {
             window.location.href = '/';
         });
     }
 }
-
-// 添加一些动画效果
-document.addEventListener('DOMContentLoaded', function() {
-    const scoreCard = document.querySelector('.score-card');
-    const sectionItems = document.querySelectorAll('.section-item');
-    
-    if (scoreCard) {
-        scoreCard.style.animation = 'fadeIn 0.8s ease-out';
-    }
-    
-    sectionItems.forEach((item, index) => {
-        item.style.animationDelay = `${index * 0.1}s`;
-    });
-}); 

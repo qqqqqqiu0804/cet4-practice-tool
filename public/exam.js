@@ -372,54 +372,213 @@ function collectAnswers() {
     return answers;
 }
 
+// 本地评分
+function gradeExam() {
+    const answers = collectAnswers();
+    const sections = currentExam.sections;
+    const results = {
+        examId: currentExam.id,
+        sections: {},
+        totalScore: 0,
+        maxScore: 100
+    };
+
+    // 选词填空评分（每空1分，共10分）
+    if (sections.wordFilling && sections.wordFilling.correctAnswers) {
+        const wf = sections.wordFilling;
+        let correct = 0;
+        const details = answers.wordFilling.map((ans, i) => {
+            const isCorrect = ans !== null && wf.correctWords && ans === wf.correctWords[i];
+            if (isCorrect) correct++;
+            return {
+                userAnswer: ans,
+                correctAnswer: wf.correctWords ? wf.correctWords[i] : null,
+                isCorrect
+            };
+        });
+        results.sections.wordFilling = {
+            score: correct,
+            total: wf.correctWords ? wf.correctWords.length : 10,
+            details
+        };
+    }
+
+    // 段落匹配评分（每题1分，共10分）
+    if (sections.paragraphMatching && sections.paragraphMatching.questions) {
+        const pm = sections.paragraphMatching;
+        let correct = 0;
+        const details = answers.paragraphMatching.map((ans, i) => {
+            const correctAns = pm.questions[i] ? pm.questions[i].answer : '';
+            const isCorrect = ans !== '' && ans === correctAns;
+            if (isCorrect) correct++;
+            return {
+                userAnswer: ans,
+                correctAnswer: correctAns,
+                isCorrect
+            };
+        });
+        results.sections.paragraphMatching = {
+            score: correct,
+            total: pm.questions.length,
+            details
+        };
+    }
+
+    // 仔细阅读评分（每题2分）
+    if (sections.readingComprehension && sections.readingComprehension.questions) {
+        const rc = sections.readingComprehension;
+        let correct = 0;
+        const details = answers.readingComprehension.map((ans, i) => {
+            const correctAns = rc.questions[i] ? rc.questions[i].answer : null;
+            const isCorrect = ans !== null && ans === correctAns;
+            if (isCorrect) correct++;
+            return {
+                userAnswer: ans,
+                correctAnswer: correctAns,
+                isCorrect
+            };
+        });
+        results.sections.readingComprehension = {
+            score: correct * 2,
+            total: rc.questions.length * 2,
+            details
+        };
+    }
+
+    // 翻译和写作给默认分（暂不自动评分）
+    results.sections.translation = { score: 12, total: 15, manual: true };
+    results.sections.writing = { score: 12, total: 15, manual: true };
+
+    // 计算总分（换算成100分制）
+    const autoScore = Object.values(results.sections).reduce((sum, s) => sum + s.score, 0);
+    const autoMax = Object.values(results.sections).reduce((sum, s) => sum + s.total, 0);
+    results.totalScore = Math.round((autoScore / autoMax) * 100);
+
+    return results;
+}
+
+// 内联标记每题对错
+function markAnswersInline(results) {
+    // 标记选词填空
+    if (results.sections.wordFilling && results.sections.wordFilling.details) {
+        const blanks = document.querySelectorAll('.wf-blank');
+        blanks.forEach((blank, i) => {
+            const detail = results.sections.wordFilling.details[i];
+            if (detail) {
+                blank.classList.add(detail.isCorrect ? 'correct' : 'incorrect');
+                if (!detail.isCorrect) {
+                    const tip = document.createElement('span');
+                    tip.className = 'answer-tip';
+                    tip.textContent = '正确: ' + detail.correctAnswer;
+                    blank.appendChild(tip);
+                }
+            }
+        });
+    }
+
+    // 标记段落匹配
+    if (results.sections.paragraphMatching && results.sections.paragraphMatching.details) {
+        const selects = document.querySelectorAll('#pm-questions select');
+        selects.forEach((select, i) => {
+            const detail = results.sections.paragraphMatching.details[i];
+            if (detail) {
+                select.classList.add(detail.isCorrect ? 'correct' : 'incorrect');
+                if (!detail.isCorrect) {
+                    const tip = document.createElement('span');
+                    tip.className = 'answer-tip';
+                    tip.textContent = '正确: ' + detail.correctAnswer;
+                    select.parentNode.appendChild(tip);
+                }
+            }
+        });
+    }
+
+    // 标记仔细阅读
+    if (results.sections.readingComprehension && results.sections.readingComprehension.details) {
+        results.sections.readingComprehension.details.forEach((detail, qIndex) => {
+            const radios = document.querySelectorAll(`input[name="rc_${qIndex}"]`);
+            radios.forEach((radio, oIndex) => {
+                const label = radio.nextElementSibling;
+                if (oIndex === detail.correctAnswer) {
+                    label.classList.add('correct');
+                }
+                if (radio.checked && !detail.isCorrect) {
+                    label.classList.add('incorrect');
+                }
+            });
+        });
+    }
+}
+
+// 保存错题到 localStorage
+function saveWrongQuestions(results) {
+    const existing = JSON.parse(localStorage.getItem('cet4_wrong_questions') || '[]');
+    const newWrongs = [];
+
+    Object.entries(results.sections).forEach(([type, section]) => {
+        if (section.details) {
+            section.details.forEach((detail, i) => {
+                if (!detail.isCorrect) {
+                    newWrongs.push({
+                        type,
+                        index: i,
+                        userAnswer: detail.userAnswer,
+                        correctAnswer: detail.correctAnswer,
+                        examId: results.examId,
+                        timestamp: Date.now()
+                    });
+                }
+            });
+        }
+    });
+
+    // 去重
+    const merged = [...existing];
+    newWrongs.forEach(w => {
+        const key = `${w.examId}_${w.type}_${w.index}`;
+        if (!merged.find(m => `${m.examId}_${m.type}_${m.index}` === key)) {
+            merged.push(w);
+        }
+    });
+
+    localStorage.setItem('cet4_wrong_questions', JSON.stringify(merged));
+}
+
 // 提交考试
 async function submitExam() {
-    const userAnswers = collectAnswers();
+    const submitButton = document.getElementById('submitExam');
+    submitButton.disabled = true;
+    submitButton.textContent = '正在评分...';
+
     try {
-        // 禁用提交按钮防止重复点击
-        const submitButton = document.getElementById('submitExam');
-        submitButton.disabled = true;
-        submitButton.textContent = '正在提交...';
+        // 本地评分
+        const results = gradeExam();
 
-        const response = await fetch('/api/submit-exam', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ examId: currentExam.id, answers: userAnswers, startTime: startTime.toISOString() }),
-        });
+        // 内联标记对错
+        markAnswersInline(results);
 
-        const result = await response.json();
+        // 保存错题
+        saveWrongQuestions(results);
 
-        if (result.success) {
-            // 保存结果数据到localStorage
-            localStorage.setItem('examResult', JSON.stringify({
-                examId: currentExam.id,
-                score: result.score,
-                message: result.message,
-                detailedResults: result.detailedResults,
-                submitTime: new Date().toISOString()
-            }));
-            
-            // 保存用户答案
-            localStorage.setItem('examAnswers', JSON.stringify(userAnswers));
-            
-            // 保存考试数据
-            localStorage.setItem('examData', JSON.stringify(currentExam));
-            
-            alert('提交成功！您的分数是：' + result.score);
-            // 跳转到结果页面
-            window.location.href = '/result.html';
-        } else {
-            alert('提交失败：' + (result.message || '未知错误'));
-            submitButton.disabled = false; // 允许重新提交
-            submitButton.textContent = '提交答案';
-        }
+        // 保存结果到 localStorage
+        localStorage.setItem('examResult', JSON.stringify({
+            examId: currentExam.id,
+            score: results.totalScore,
+            sections: results.sections,
+            submitTime: new Date().toISOString()
+        }));
+
+        // 保存用户答案和考试数据
+        localStorage.setItem('examAnswers', JSON.stringify(collectAnswers()));
+        localStorage.setItem('examData', JSON.stringify(currentExam));
+
+        alert('评分完成！您的分数是：' + results.totalScore);
+        window.location.href = '/result.html';
     } catch (error) {
-        console.error('Error submitting exam:', error);
-        alert('网络错误，无法提交考试');
-        document.getElementById('submitExam').disabled = false; // 允许重新提交
-        document.getElementById('submitExam').textContent = '提交答案';
+        console.error('Error grading exam:', error);
+        alert('评分出错，请重试');
+        submitButton.disabled = false;
+        submitButton.textContent = '提交答案';
     }
 }
 

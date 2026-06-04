@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>错题本 - 四级考试刷题工具</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>📖 错题本</h1>
+            <p>收集你做错的题目，方便复习</p>
+        </header>
+
+        <main class="result-content">
+            <div class="wrong-toolbar">
+                <div class="wrong-filters">
+                    <button class="filter-btn active" data-type="all">全部</button>
+                    <button class="filter-btn" data-type="wordFilling">选词填空</button>
+                    <button class="filter-btn" data-type="paragraphMatching">段落匹配</button>
+                    <button class="filter-btn" data-type="readingComprehension">仔细阅读</button>
+                </div>
+                <div class="wrong-stats">
+                    <span id="wrongCount">0</span> 道错题
+                </div>
+            </div>
+
+            <div id="wrongList" class="wrong-list">
+                <!-- 错题列表通过 JS 动态生成 -->
+            </div>
+
+            <div class="action-buttons">
+                <button id="clearAll" class="btn btn-outline">清空错题本</button>
+                <button id="goHome" class="btn btn-primary">返回首页</button>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>&copy; 2024 四级考试刷题工具. 持续学习，持续进步！</p>
+        </footer>
+    </div>
+
+    <script src="wrong.js"></script>
+</body>
+</html>
