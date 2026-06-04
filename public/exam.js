@@ -11,6 +11,15 @@ let wfActiveBlank = null; // 当前被激活的空白索引
 document.addEventListener('DOMContentLoaded', function() {
     loadExam();
     startTimer();
+
+    // 监听滚动事件，高亮导航
+    window.addEventListener('scroll', highlightCurrentSection);
+
+    // 监听翻译和写作输入，更新进度
+    const trAnswer = document.getElementById('tr-answer');
+    const wrAnswer = document.getElementById('wr-answer');
+    if (trAnswer) trAnswer.addEventListener('input', updateProgress);
+    if (wrAnswer) wrAnswer.addEventListener('input', updateProgress);
 });
 
 // 加载考试题目
@@ -298,6 +307,9 @@ function startTimer() {
         clearInterval(timerInterval);
     }
     const examDuration = 60 * 60 * 1000; // 60分钟
+    let warned10 = false;
+    let warned5 = false;
+
     timerInterval = setInterval(() => {
         const elapsedTime = new Date() - startTime;
         const remainingTime = examDuration - elapsedTime;
@@ -305,16 +317,132 @@ function startTimer() {
         if (remainingTime <= 0) {
             clearInterval(timerInterval);
             document.getElementById('timeLeft').textContent = '时间：00:00';
-            alert('考试时间到！');
-            submitExam(); // 时间到自动提交
+            document.getElementById('timeLeft').style.color = '#e53e3e';
+            alert('考试时间到！自动提交答案。');
+            submitExam();
             return;
         }
 
         const minutes = Math.floor(remainingTime / (1000 * 60));
         const seconds = Math.floor((remainingTime % (1000 * 60)) / 1000);
+        const timeEl = document.getElementById('timeLeft');
 
-        document.getElementById('timeLeft').textContent = `时间：${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        timeEl.textContent = `时间：${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+        // 最后10分钟变黄
+        if (remainingTime <= 10 * 60 * 1000) {
+            timeEl.style.color = '#ed8936';
+        }
+        // 最后5分钟变红
+        if (remainingTime <= 5 * 60 * 1000) {
+            timeEl.style.color = '#e53e3e';
+            timeEl.style.fontWeight = '700';
+        }
+
+        // 10分钟提醒
+        if (!warned10 && remainingTime <= 10 * 60 * 1000) {
+            warned10 = true;
+            showTimeWarning('还剩10分钟，请抓紧时间！');
+        }
+        // 5分钟提醒
+        if (!warned5 && remainingTime <= 5 * 60 * 1000) {
+            warned5 = true;
+            showTimeWarning('还剩5分钟，请尽快完成！');
+        }
+
+        // 更新进度条
+        updateProgress();
     }, 1000);
+}
+
+// 时间警告提示（页面内提示，不用 alert）
+function showTimeWarning(msg) {
+    const existing = document.querySelector('.time-warning');
+    if (existing) existing.remove();
+
+    const div = document.createElement('div');
+    div.className = 'time-warning';
+    div.textContent = msg;
+    document.body.appendChild(div);
+
+    setTimeout(() => div.classList.add('show'), 10);
+    setTimeout(() => {
+        div.classList.remove('show');
+        setTimeout(() => div.remove(), 300);
+    }, 3000);
+}
+
+// 更新答题进度
+function updateProgress() {
+    if (!currentExam) return;
+    let answered = 0;
+    let total = 0;
+
+    // 选词填空
+    if (currentExam.sections.wordFilling) {
+        const blanks = currentExam.sections.wordFilling.blanks;
+        total += blanks ? blanks.length : 10;
+        if (wfSelectedBlanks) {
+            answered += wfSelectedBlanks.filter(v => v !== null).length;
+        }
+    }
+
+    // 段落匹配
+    const pmSelects = document.querySelectorAll('#pm-questions select');
+    total += pmSelects.length;
+    pmSelects.forEach(s => { if (s.value) answered++; });
+
+    // 仔细阅读
+    if (currentExam.sections.readingComprehension) {
+        const rcQuestions = currentExam.sections.readingComprehension.questions;
+        total += rcQuestions ? rcQuestions.length : 5;
+        rcQuestions.forEach((_, i) => {
+            const checked = document.querySelector(`input[name="rc_${i}"]:checked`);
+            if (checked) answered++;
+        });
+    }
+
+    // 翻译
+    total += 1;
+    const trAnswer = document.getElementById('tr-answer');
+    if (trAnswer && trAnswer.value.trim().length > 0) answered++;
+
+    // 写作
+    total += 1;
+    const wrAnswer = document.getElementById('wr-answer');
+    if (wrAnswer && wrAnswer.value.trim().length > 0) answered++;
+
+    // 更新进度条
+    const percent = total > 0 ? Math.round((answered / total) * 100) : 0;
+    const progressFill = document.getElementById('progress');
+    const progressText = document.getElementById('progressText');
+    if (progressFill) {
+        progressFill.style.width = percent + '%';
+    }
+    if (progressText) {
+        progressText.textContent = `${answered}/${total}`;
+    }
+
+    // 高亮当前所在区域
+    highlightCurrentSection();
+}
+
+// 高亮导航侧栏中当前区域
+function highlightCurrentSection() {
+    const sections = ['wordFilling', 'paragraphMatching', 'readingComprehension', 'translation', 'writing'];
+    const scrollPos = window.scrollY + 200;
+
+    let current = sections[0];
+    sections.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && el.offsetTop <= scrollPos) {
+            current = id;
+        }
+    });
+
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.toggle('active', item.dataset.section === current);
+    });
 }
 
 // 收集用户答案
@@ -559,6 +687,15 @@ async function submitExam() {
 
         // 保存错题
         saveWrongQuestions(results);
+
+        // 保存到历史成绩
+        const history = JSON.parse(localStorage.getItem('cet4_exam_history') || '[]');
+        history.push({
+            examId: currentExam.id,
+            score: results.totalScore,
+            submitTime: new Date().toISOString()
+        });
+        localStorage.setItem('cet4_exam_history', JSON.stringify(history));
 
         // 保存结果到 localStorage
         localStorage.setItem('examResult', JSON.stringify({

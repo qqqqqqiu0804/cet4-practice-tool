@@ -2,6 +2,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     const startExamBtn = document.getElementById('startExam');
     const wrongBookBtn = document.getElementById('wrongBook');
+    const historyBtn = document.getElementById('historyBtn');
 
     if (startExamBtn) {
         startExamBtn.addEventListener('click', function() {
@@ -16,6 +17,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (wrongBookBtn) {
         wrongBookBtn.addEventListener('click', function() {
             window.location.href = '/wrong.html';
+        });
+    }
+
+    if (historyBtn) {
+        historyBtn.addEventListener('click', function() {
+            window.location.href = '/history.html';
         });
     }
 

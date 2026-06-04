@@ -199,4 +199,11 @@ function setupEventListeners() {
             window.location.href = '/';
         });
     }
+
+    const historyBtn = document.getElementById('historyBtn');
+    if (historyBtn) {
+        historyBtn.addEventListener('click', function() {
+            window.location.href = '/history.html';
+        });
+    }
 }

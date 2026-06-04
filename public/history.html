@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>历史成绩 - 四级考试刷题工具</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>📊 历史成绩</h1>
+            <p>查看你的学习进步轨迹</p>
+        </header>
+
+        <main class="result-content">
+            <div class="history-summary">
+                <div class="history-stat">
+                    <div class="stat-number" id="totalExams">0</div>
+                    <div class="stat-label">考试次数</div>
+                </div>
+                <div class="history-stat">
+                    <div class="stat-number" id="avgScore">0</div>
+                    <div class="stat-label">平均分</div>
+                </div>
+                <div class="history-stat">
+                    <div class="stat-number" id="bestScore">0</div>
+                    <div class="stat-label">最高分</div>
+                </div>
+                <div class="history-stat">
+                    <div class="stat-number" id="worstScore">0</div>
+                    <div class="stat-label">最低分</div>
+                </div>
+            </div>
+
+            <div class="history-chart-container">
+                <h3>成绩趋势</h3>
+                <canvas id="scoreChart" width="800" height="300"></canvas>
+            </div>
+
+            <div class="history-list">
+                <h3>考试记录</h3>
+                <div id="historyList"></div>
+            </div>
+
+            <div class="action-buttons">
+                <button id="clearHistory" class="btn btn-outline">清空记录</button>
+                <button id="goHome" class="btn btn-primary">返回首页</button>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>&copy; 2024 四级考试刷题工具. 持续学习，持续进步！</p>
+        </footer>
+    </div>
+
+    <script src="theme.js"></script>
+    <script src="history.js"></script>
+</body>
+</html>

@@ -16,10 +16,23 @@
                     <span id="timer">时间: <span id="timeLeft">120:00</span></span>
                 </div>
             </div>
-            <div class="progress-bar">
-                <div id="progress" class="progress-fill"></div>
+            <div class="progress-bar-container">
+                <div class="progress-bar">
+                    <div id="progress" class="progress-fill"></div>
+                </div>
+                <span id="progressText" class="progress-text">0/0</span>
             </div>
         </header>
+
+        <!-- 题目导航侧栏 -->
+        <nav id="questionNav" class="question-nav">
+            <div class="nav-title">题目导航</div>
+            <a href="#wordFilling" class="nav-item active" data-section="wordFilling">选词填空</a>
+            <a href="#paragraphMatching" class="nav-item" data-section="paragraphMatching">段落匹配</a>
+            <a href="#readingComprehension" class="nav-item" data-section="readingComprehension">仔细阅读</a>
+            <a href="#translation" class="nav-item" data-section="translation">翻译</a>
+            <a href="#writing" class="nav-item" data-section="writing">写作</a>
+        </nav>
 
         <main class="exam-content">
             <div class="exam-sections" style="display: block; height: 100vh; overflow-y: scroll;">
@@ -86,6 +99,7 @@
         </main>
     </div>
 
+    <script src="theme.js"></script>
     <script src="exam.js"></script>
 </body>
 </html> 
